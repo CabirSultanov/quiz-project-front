@@ -6,8 +6,8 @@ import api from '../api';
 import { setUser } from '../authSlice';
 
 interface DecodedToken {
-    id: string;
     sub: string;
+    unique_name: string;
     role: string;
 }
 
@@ -37,8 +37,8 @@ const Login: React.FC = () => {
 
             const decoded: DecodedToken = jwtDecode(accessToken);
             const user = {
-                id: decoded.id,
-                username: decoded.sub,
+                id: decoded.sub,
+                username: decoded.unique_name,
                 role: decoded.role,
             };
             dispatch(setUser(user));

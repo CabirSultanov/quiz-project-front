@@ -5,6 +5,7 @@ import api from '../api';
 const Register: React.FC = () => {
     const [username, setUsername] = useState<string>('');
     const [password, setPassword] = useState<string>('');
+    const [showPassword, setShowPassword] = useState<boolean>(false);
     const [firstName, setFirstName] = useState<string>('');
     const [lastName, setLastName] = useState<string>('');
     const [email, setEmail] = useState<string>('');
@@ -33,11 +34,11 @@ const Register: React.FC = () => {
             if (image) {
                 formData.append('Image', image);
             }
-
-            await api.post('/Auth/register', formData, {
+            const response = await api.post('/Auth/register', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            navigate('/', { state: { message: 'Registration successful' } });
+            const { userId } = response.data;
+            navigate('/verify', { state: { userId, email } });
         } catch (err: any) {
             setError(err.response?.data || 'Registration error');
         }
@@ -65,14 +66,26 @@ const Register: React.FC = () => {
                                 </div>
                                 <div className="mb-3">
                                     <label htmlFor="password" className="form-label">Password</label>
-                                    <input
-                                        type="password"
-                                        className="form-control"
-                                        id="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                    />
+                                    <div className="input-group">
+                                        <input
+                                            type={showPassword ? 'text' : 'password'}
+                                            className="form-control"
+                                            id="password"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            required
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline-secondary"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5 8-5.5 8-5.5z"/>
+                                                <path d="M8 5.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z"/>
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="mb-3">
                                     <label htmlFor="firstName" className="form-label">First Name</label>

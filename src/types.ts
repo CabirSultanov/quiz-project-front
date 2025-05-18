@@ -31,6 +31,17 @@ export interface UserProfile {
     roleId: number;
 }
 
+export interface AdminUser {
+    id: number;
+    username: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber: string;
+    imageUrl?: string;
+    roleId: number;
+}
+
 export interface QuizAttempt {
     quizTitle: string;
     difficultyLevel: number;

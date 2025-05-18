@@ -21,7 +21,7 @@ const Profile: React.FC = () => {
         } else {
             const fetchData = async () => {
                 try {
-                    const userResponse = await api.get('/Auth/user');
+                    const userResponse = await api.get('/User/user');
                     setUserProfile(userResponse.data);
 
                     const attemptsResponse = await api.get('/UserQuiz/attempts');

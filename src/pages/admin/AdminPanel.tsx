@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
-import { Quiz, Question, Answer } from '../../types';
+import { Quiz, Question, Answer, AdminUser } from '../../types';
 import Navbar from '../../components/Navbar';
 
 const AdminPanel: React.FC = () => {
@@ -9,6 +9,9 @@ const AdminPanel: React.FC = () => {
     const [quizzes, setQuizzes] = useState<Quiz[]>([]);
     const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
     const [newQuiz, setNewQuiz] = useState({ title: '', description: '', difficultyLevel: 1, image: null as File | null, questions: [] as Question[] });
+    const [activeTab, setActiveTab] = useState<'quizzes' | 'users'>('quizzes');
+    const [users, setUsers] = useState<AdminUser[]>([]);
+    const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
 
     useEffect(() => {
         const fetchQuizzes = async () => {
@@ -25,6 +28,18 @@ const AdminPanel: React.FC = () => {
             }
         };
         fetchQuizzes();
+    }, []);
+
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const response = await api.get('/User');
+                setUsers(Array.isArray(response.data) ? response.data : []);
+            } catch (error) {
+                console.error('Error fetching users:', error);
+            }
+        };
+        fetchUsers();
     }, []);
 
     const handleCreateQuiz = async () => {
@@ -182,103 +197,170 @@ const AdminPanel: React.FC = () => {
         }
     };
 
+    const handleUpdateUser = async (user: AdminUser) => {
+        const formData = new FormData();
+        formData.append('FirstName', user.firstName);
+        formData.append('LastName', user.lastName);
+        formData.append('Email', user.email);
+        formData.append('PhoneNumber', user.phoneNumber);
+        formData.append('RoleId', user.roleId.toString());
+        try {
+            await api.put(`/User/${user.id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+            setUsers(users.map(u => (u.id === user.id ? user : u)));
+            setEditingUser(null);
+        } catch (error) {
+            console.error('Error updating user:', error);
+        }
+    };
+
+    const handleDeleteUser = async (id: number) => {
+        if (window.confirm('Are you sure you want to delete this user?')) {
+            try {
+                await api.delete(`/User/${id}`);
+                setUsers(users.filter(u => u.id !== id));
+            } catch (error) {
+                console.error('Error deleting user:', error);
+            }
+        }
+    };
+
     return (
         <>
             <Navbar />
             <div className="container mt-5">
                 <h2>Admin Panel</h2>
-                <br />
-                <h4>Create New Quiz</h4>
-                <div className="mb-4">
-                    <input type="text" className="form-control mb-2" placeholder="Title" value={newQuiz.title} onChange={e => setNewQuiz({ ...newQuiz, title: e.target.value })} />
-                    <textarea className="form-control mb-2" placeholder="Description" value={newQuiz.description} onChange={e => setNewQuiz({ ...newQuiz, description: e.target.value })} />
-                    <select className="form-select mb-2" value={newQuiz.difficultyLevel} onChange={e => setNewQuiz({ ...newQuiz, difficultyLevel: Number(e.target.value) })}>
-                        <option value={1}>Easy</option>
-                        <option value={2}>Medium</option>
-                        <option value={3}>Hard</option>
-                    </select>
-                    <input type="file" className="form-control mb-2" onChange={e => setNewQuiz({ ...newQuiz, image: e.target.files ? e.target.files[0] : null })} />
-                    <button className="btn btn-success" onClick={handleCreateQuiz}>Create Quiz</button>
+                <div className="btn-group mb-4">
+                    <button className={`btn btn-${activeTab === 'quizzes' ? 'primary' : 'secondary'}`} onClick={() => setActiveTab('quizzes')}>Quizzes</button>
+                    <button className={`btn btn-${activeTab === 'users' ? 'primary' : 'secondary'}`} onClick={() => setActiveTab('users')}>Users</button>
                 </div>
+                {activeTab === 'quizzes' && (
+                    <>
+                        <br />
+                        <h4>Create New Quiz</h4>
+                        <div className="mb-4">
+                            <input type="text" className="form-control mb-2" placeholder="Title" value={newQuiz.title} onChange={e => setNewQuiz({ ...newQuiz, title: e.target.value })} />
+                            <textarea className="form-control mb-2" placeholder="Description" value={newQuiz.description} onChange={e => setNewQuiz({ ...newQuiz, description: e.target.value })} />
+                            <select className="form-select mb-2" value={newQuiz.difficultyLevel} onChange={e => setNewQuiz({ ...newQuiz, difficultyLevel: Number(e.target.value) })}>
+                                <option value={1}>Easy</option>
+                                <option value={2}>Medium</option>
+                                <option value={3}>Hard</option>
+                            </select>
+                            <input type="file" className="form-control mb-2" onChange={e => setNewQuiz({ ...newQuiz, image: e.target.files ? e.target.files[0] : null })} />
+                            <button className="btn btn-success" onClick={handleCreateQuiz}>Create Quiz</button>
+                        </div>
 
-                <h4>Manage Quizzes</h4>
-                {quizzes.map(quiz => (
-                    <div key={quiz.id} className="card mb-3">
-                        <div className="card-body">
-                            {editingQuiz && editingQuiz.id === quiz.id ? (
-                                <>
-                                    <input type="text" className="form-control mb-2" value={editingQuiz.title} onChange={e => setEditingQuiz({ ...editingQuiz, title: e.target.value })} />
-                                    <textarea className="form-control mb-2" value={editingQuiz.description} onChange={e => setEditingQuiz({ ...editingQuiz, description: e.target.value })} />
-                                    <select className="form-select mb-2" value={editingQuiz.difficultyLevel} onChange={e => setEditingQuiz({ ...editingQuiz, difficultyLevel: Number(e.target.value) })}>
-                                        <option value={1}>Easy</option>
-                                        <option value={2}>Medium</option>
-                                        <option value={3}>Hard</option>
-                                    </select>
-                                    <button className="btn btn-success me-2" onClick={() => editingQuiz && handleSaveQuiz(editingQuiz)}>Save</button>
-                                    <button className="btn btn-secondary" onClick={() => setEditingQuiz(null)}>Cancel</button>
+                        <h4>Manage Quizzes</h4>
+                        {quizzes.map(quiz => (
+                            <div key={quiz.id} className="card mb-3">
+                                <div className="card-body">
+                                    {editingQuiz && editingQuiz.id === quiz.id ? (
+                                        <>
+                                            <input type="text" className="form-control mb-2" value={editingQuiz.title} onChange={e => setEditingQuiz({ ...editingQuiz, title: e.target.value })} />
+                                            <textarea className="form-control mb-2" value={editingQuiz.description} onChange={e => setEditingQuiz({ ...editingQuiz, description: e.target.value })} />
+                                            <select className="form-select mb-2" value={editingQuiz.difficultyLevel} onChange={e => setEditingQuiz({ ...editingQuiz, difficultyLevel: Number(e.target.value) })}>
+                                                <option value={1}>Easy</option>
+                                                <option value={2}>Medium</option>
+                                                <option value={3}>Hard</option>
+                                            </select>
+                                            <button className="btn btn-success me-2" onClick={() => editingQuiz && handleSaveQuiz(editingQuiz)}>Save</button>
+                                            <button className="btn btn-secondary" onClick={() => setEditingQuiz(null)}>Cancel</button>
 
-                                    <h4 className="mt-3">Questions</h4>
-                                    {editingQuiz.questions.map((question, qIndex) => (
-                                        <div key={question.id} className="mb-3">
-                                            <input
-                                                type="text"
-                                                className="form-control mb-2"
-                                                value={question.text}
-                                                onChange={e => {
-                                                    const updatedQuestions = [...editingQuiz.questions];
-                                                    updatedQuestions[qIndex].text = e.target.value;
-                                                    setEditingQuiz({ ...editingQuiz, questions: updatedQuestions });
-                                                }}
-                                                onBlur={() => updateQuestion(quiz.id, question)}
-                                            />
-                                            <button className="btn btn-danger me-2" onClick={() => deleteQuestion(quiz.id, question.id)}>Delete Question</button>
-                                            <button className="btn btn-secondary" onClick={() => addAnswer(editingQuiz, qIndex)}>Add Answer</button>
-
-                                            {/* Answers */}
-                                            {question.answers.map((answer, aIndex) => (
-                                                <div key={answer.id} className="input-group mb-2">
+                                            <h4 className="mt-3">Questions</h4>
+                                            {editingQuiz.questions.map((question, qIndex) => (
+                                                <div key={question.id} className="mb-3">
                                                     <input
                                                         type="text"
-                                                        className="form-control"
-                                                        value={answer.text}
+                                                        className="form-control mb-2"
+                                                        value={question.text}
                                                         onChange={e => {
                                                             const updatedQuestions = [...editingQuiz.questions];
-                                                            updatedQuestions[qIndex].answers[aIndex].text = e.target.value;
+                                                            updatedQuestions[qIndex].text = e.target.value;
                                                             setEditingQuiz({ ...editingQuiz, questions: updatedQuestions });
                                                         }}
-                                                        onBlur={() => updateAnswer(answer)}
+                                                        onBlur={() => updateQuestion(quiz.id, question)}
                                                     />
-                                                    <div className="input-group-text">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={answer.isCorrect}
-                                                            onChange={e => {
-                                                                const updatedQuestions = [...editingQuiz.questions];
-                                                                updatedQuestions[qIndex].answers[aIndex].isCorrect = e.target.checked;
-                                                                setEditingQuiz({ ...editingQuiz, questions: updatedQuestions });
-                                                                updateAnswer({ ...answer, isCorrect: e.target.checked });
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <button className="btn btn-danger" onClick={() => deleteAnswer(question.id, answer.id)}>Delete Answer</button>
+                                                    <button className="btn btn-danger me-2" onClick={() => deleteQuestion(quiz.id, question.id)}>Delete Question</button>
+                                                    <button className="btn btn-secondary" onClick={() => addAnswer(editingQuiz, qIndex)}>Add Answer</button>
+
+                                                    {/* Answers */}
+                                                    {question.answers.map((answer, aIndex) => (
+                                                        <div key={answer.id} className="input-group mb-2">
+                                                            <input
+                                                                type="text"
+                                                                className="form-control"
+                                                                value={answer.text}
+                                                                onChange={e => {
+                                                                    const updatedQuestions = [...editingQuiz.questions];
+                                                                    updatedQuestions[qIndex].answers[aIndex].text = e.target.value;
+                                                                    setEditingQuiz({ ...editingQuiz, questions: updatedQuestions });
+                                                                }}
+                                                                onBlur={() => updateAnswer(answer)}
+                                                            />
+                                                            <div className="input-group-text">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={answer.isCorrect}
+                                                                    onChange={e => {
+                                                                        const updatedQuestions = [...editingQuiz.questions];
+                                                                        updatedQuestions[qIndex].answers[aIndex].isCorrect = e.target.checked;
+                                                                        setEditingQuiz({ ...editingQuiz, questions: updatedQuestions });
+                                                                        updateAnswer({ ...answer, isCorrect: e.target.checked });
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <button className="btn btn-danger" onClick={() => deleteAnswer(question.id, answer.id)}>Delete Answer</button>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             ))}
-                                        </div>
-                                    ))}
-                                    <button className="btn btn-primary" onClick={() => addQuestion(editingQuiz)}>Add Question</button>
-                                </>
-                            ) : (
-                                <>
-                                    <h5>{quiz.title}</h5>
-                                    <p>{quiz.description}</p>
-                                    <p>Difficulty: {quiz.difficultyLevel}</p>
-                                    <button className="btn btn-primary me-2" onClick={() => setEditingQuiz(quiz)}>Edit</button>
-                                    <button className="btn btn-danger" onClick={() => handleDeleteQuiz(quiz.id)}>Delete</button>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                ))}
+                                            <button className="btn btn-primary" onClick={() => addQuestion(editingQuiz)}>Add Question</button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <h5>{quiz.title}</h5>
+                                            <p>{quiz.description}</p>
+                                            <p>Difficulty: {quiz.difficultyLevel}</p>
+                                            <button className="btn btn-primary me-2" onClick={() => setEditingQuiz(quiz)}>Edit</button>
+                                            <button className="btn btn-danger" onClick={() => handleDeleteQuiz(quiz.id)}>Delete</button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </>
+                )}
+                {activeTab === 'users' && (
+                    <>
+                        <h4>Manage Users</h4>
+                        {users.map(user => (
+                            <div key={user.id} className="card mb-3">
+                                <div className="card-body">
+                                    {editingUser && editingUser.id === user.id ? (
+                                        <>
+                                            <input type="text" className="form-control mb-2" placeholder="First Name" value={editingUser.firstName} onChange={e => setEditingUser({ ...editingUser, firstName: e.target.value })} />
+                                            <input type="text" className="form-control mb-2" placeholder="Last Name" value={editingUser.lastName} onChange={e => setEditingUser({ ...editingUser, lastName: e.target.value })} />
+                                            <input type="email" className="form-control mb-2" placeholder="Email" value={editingUser.email} onChange={e => setEditingUser({ ...editingUser, email: e.target.value })} />
+                                            <input type="text" className="form-control mb-2" placeholder="Phone Number" value={editingUser.phoneNumber} onChange={e => setEditingUser({ ...editingUser, phoneNumber: e.target.value })} />
+                                            <select className="form-select mb-2" value={editingUser.roleId} onChange={e => setEditingUser({ ...editingUser, roleId: Number(e.target.value) })}>
+                                                <option value={1}>Admin</option>
+                                                <option value={2}>User</option>
+                                            </select>
+                                            <button className="btn btn-success me-2" onClick={() => editingUser && handleUpdateUser(editingUser)}>Save</button>
+                                            <button className="btn btn-secondary" onClick={() => setEditingUser(null)}>Cancel</button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <h5>{user.username}</h5>
+                                            <p>{user.email}</p>
+                                            <button className="btn btn-primary me-2" onClick={() => setEditingUser(user)}>Edit</button>
+                                            <button className="btn btn-danger" onClick={() => handleDeleteUser(user.id)}>Delete</button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </>
+                )}
             </div>
         </>
     );
